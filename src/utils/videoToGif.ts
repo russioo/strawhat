@@ -6,7 +6,6 @@ export async function convertVideoToGif(
 ): Promise<Blob> {
   return new Promise((resolve, reject) => {
     const video = document.createElement("video");
-    video.crossOrigin = "anonymous";
     video.muted = true;
     video.playsInline = true;
 

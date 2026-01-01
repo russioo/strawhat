@@ -90,17 +90,20 @@ export default function GeneratorSection() {
         if (attempts >= 120) throw new Error("Request timed out");
         if (!videoUrl) throw new Error("No video URL received");
 
+        // Use proxy to avoid CORS
+        const proxyUrl = `/api/proxy-video?url=${encodeURIComponent(videoUrl)}`;
+
         // Auto-convert to GIF
         setStatus("Converting to GIF...");
         const { convertVideoToGif } = await import("@/utils/videoToGif");
-        const gifBlob = await convertVideoToGif(videoUrl, (progress) => {
+        const gifBlob = await convertVideoToGif(proxyUrl, (progress) => {
           setConversionProgress(Math.round(progress * 100));
           setStatus(`Converting to GIF... ${Math.round(progress * 100)}%`);
         });
         
         const gifUrl = URL.createObjectURL(gifBlob);
         setResultGif(gifUrl);
-        setResultVideo(videoUrl);
+        setResultVideo(proxyUrl);
         setStatus("GIF ready!");
       } else {
         // PFP/Meme mode uses nano-banana-pro
