@@ -4,14 +4,10 @@ const KIE_API_KEY = process.env.KIE_API_KEY || "";
 const IMGBB_API_KEY = process.env.IMGBB_API_KEY || "";
 const KIE_API_URL = "https://api.kie.ai/api/v1/jobs/createTask";
 
-// Base prompt for One Piece straw hat GIF
-const BASE_PROMPT = `Create a smooth looping GIF in the exact official One Piece anime style by Eiichiro Oda and Toei Animation: clean thick black outlines, vibrant cel-shading, high contrast, dynamic anime lighting, dramatic expressions, speed lines and impact effects when needed. The central focus is always Monkey D. Luffy's iconic straw hat – precisely accurate design: bright golden-yellow woven straw with visible textured strands, slight wear and frayed edges, wide brim gently curved upward, thick vibrant red ribbon band tied around the base with the ends hanging down exactly like in the anime. The straw hat must be prominently visible and perfectly detailed in every frame.
+// Simple prompt for Straw Hat GIF
+const BASE_PROMPT = `Add Luffy's iconic straw hat (golden straw, red ribbon band) to this scene. Keep the original subject and setting. Make it slightly mysterious and cinematic. Smooth looping animation. `;
 
-Scene: `;
-
-const PROMPT_SUFFIX = `
-
-Camera: dynamic cinematic anime shots, smooth panning or subtle rotation around the straw hat for emphasis, dramatic angles, occasional slow-motion for impact. Background in classic One Piece aesthetic with bold colors, sea, sky, ships or ancient ruins if it fits. Energetic and adventurous mood, epic yet fun atmosphere. Seamless loop optimized for GIF, 4-8 seconds long, high resolution, masterpiece anime quality.`;
+const PROMPT_SUFFIX = ``;
 
 async function uploadToImgBB(base64Image: string): Promise<string> {
   const base64Data = base64Image.replace(/^data:image\/\w+;base64,/, "");
