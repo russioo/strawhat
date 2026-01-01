@@ -60,7 +60,10 @@ export default function GeneratorSection() {
         const createResponse = await fetch("/api/generate-gif", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ prompt }),
+          body: JSON.stringify({ 
+            prompt,
+            image: uploadedImage || undefined
+          }),
         });
         const createData = await createResponse.json();
         if (!createData.success) throw new Error(createData.error);
@@ -223,22 +226,65 @@ export default function GeneratorSection() {
           <p className="font-display text-lg italic text-[#8a9bb0]">
             {mode === "pfp" && "Upload your photo to get the iconic Straw Hat"}
             {mode === "meme" && "Upload image + describe your meme idea"}
-            {mode === "gif" && "Describe your One Piece scene for an animated GIF"}
+            {mode === "gif" && "Describe a scene, or upload an image to animate"}
           </p>
         </div>
 
-        {/* GIF Mode - No upload needed */}
+        {/* GIF Mode */}
         {mode === "gif" ? (
           <div className="max-w-2xl mx-auto">
+            {/* Optional image upload for GIF */}
+            <div className="mb-6">
+              <label className="block font-sans text-[10px] tracking-[0.2em] uppercase text-[#d4a012] mb-3">
+                Reference Image (Optional)
+              </label>
+              {uploadedImage ? (
+                <div className="flex items-center gap-4 p-4 bg-[#0a0e14]/50 border border-[#d4a012]/15 rounded-xl">
+                  <img src={uploadedImage} alt="Reference" className="w-20 h-20 object-cover rounded-lg" />
+                  <div className="flex-1">
+                    <p className="font-sans text-sm text-[#f5f0e6]">Image uploaded</p>
+                    <p className="font-sans text-xs text-[#6b7280]">Will animate this image</p>
+                  </div>
+                  <button
+                    onClick={() => setUploadedImage(null)}
+                    className="px-3 py-1.5 text-[10px] tracking-[0.1em] uppercase text-[#6b7280] border border-[#2a3545] rounded-lg hover:border-[#3a4555] hover:text-[#f5f0e6] transition-all"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ) : (
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  onDrop={handleDrop}
+                  onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+                  onDragLeave={() => setIsDragOver(false)}
+                  className={`
+                    cursor-pointer p-4 rounded-xl border border-dashed transition-all
+                    ${isDragOver 
+                      ? "border-[#d4a012] bg-[#d4a012]/5" 
+                      : "border-[#d4a012]/15 hover:border-[#d4a012]/35 bg-[#0a0e14]/30"
+                    }
+                  `}
+                >
+                  <p className="font-sans text-sm text-center text-[#6b7280]">
+                    Drop image or <span className="text-[#d4a012]">browse</span> (optional)
+                  </p>
+                </div>
+              )}
+            </div>
+
             {/* Prompt input */}
             <div className="mb-8">
               <label className="block font-sans text-[10px] tracking-[0.2em] uppercase text-[#d4a012] mb-3">
-                Scene Description
+                Animation Prompt
               </label>
               <textarea
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
-                placeholder="e.g., 'Luffy throwing a punch with his straw hat flying off' or 'The straw hat floating on ocean waves at sunset'"
+                placeholder={uploadedImage 
+                  ? "e.g., 'Make the character wave' or 'Add wind blowing through hair'"
+                  : "e.g., 'Luffy throwing a punch with his straw hat flying off'"
+                }
                 className="w-full px-5 py-4 bg-[#0a0e14]/50 border border-[#d4a012]/15 rounded-xl text-[#f5f0e6] placeholder-[#6b7280] font-sans text-sm focus:outline-none focus:border-[#d4a012]/40 transition-colors resize-none"
                 rows={3}
               />
@@ -352,13 +398,6 @@ export default function GeneratorSection() {
                 JPEG, PNG, WebP
               </p>
             </div>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
-              className="hidden"
-            />
           </div>
         ) : (
           /* Editing View for PFP/Meme */
@@ -465,6 +504,14 @@ export default function GeneratorSection() {
           </div>
         )}
 
+        {/* Hidden file input - available for all modes */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
+          className="hidden"
+        />
       </div>
     </section>
   );
