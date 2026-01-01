@@ -4,21 +4,33 @@ export async function convertVideoToGif(
   videoUrl: string,
   onProgress?: (progress: number) => void
 ): Promise<Blob> {
+  console.log("🎬 Starting video to GIF conversion...", videoUrl);
+
+  // First fetch the video as blob to avoid any streaming issues
+  const response = await fetch(videoUrl);
+  const videoBlob = await response.blob();
+  const blobUrl = URL.createObjectURL(videoBlob);
+
   return new Promise((resolve, reject) => {
-    console.log("Starting video to GIF conversion...", videoUrl);
-    
     const video = document.createElement("video");
     video.muted = true;
     video.playsInline = true;
     video.preload = "auto";
 
-    let resolved = false;
+    // Wait for video to be fully loaded
+    video.onloadeddata = async () => {
+      console.log(
+        "📹 Video loaded:",
+        video.videoWidth,
+        "x",
+        video.videoHeight,
+        "duration:",
+        video.duration
+      );
 
-    video.onloadedmetadata = async () => {
-      console.log("Video metadata loaded:", video.videoWidth, "x", video.videoHeight, "duration:", video.duration);
-      
-      if (video.videoWidth === 0 || video.videoHeight === 0) {
-        reject(new Error("Invalid video dimensions"));
+      if (video.videoWidth === 0 || video.videoHeight === 0 || !video.duration) {
+        URL.revokeObjectURL(blobUrl);
+        reject(new Error("Invalid video"));
         return;
       }
 
@@ -26,17 +38,22 @@ export async function convertVideoToGif(
       const ctx = canvas.getContext("2d");
 
       if (!ctx) {
+        URL.revokeObjectURL(blobUrl);
         reject(new Error("Could not get canvas context"));
         return;
       }
 
-      // Set canvas size (max 480px for reasonable GIF size)
-      const maxSize = 480;
-      const scale = Math.min(maxSize / video.videoWidth, maxSize / video.videoHeight);
+      // Scale down for reasonable GIF size
+      const maxSize = 400;
+      const scale = Math.min(
+        maxSize / video.videoWidth,
+        maxSize / video.videoHeight,
+        1
+      );
       canvas.width = Math.round(video.videoWidth * scale);
       canvas.height = Math.round(video.videoHeight * scale);
 
-      console.log("Canvas size:", canvas.width, "x", canvas.height);
+      console.log("🖼️ Canvas size:", canvas.width, "x", canvas.height);
 
       // Create GIF encoder
       const gif = new GIF({
@@ -48,72 +65,74 @@ export async function convertVideoToGif(
       });
 
       gif.on("progress", (p: number) => {
-        onProgress?.(p);
+        console.log("📊 GIF encoding progress:", Math.round(p * 100) + "%");
+        onProgress?.(0.5 + p * 0.5); // 50-100% for encoding
       });
 
       gif.on("finished", (blob: Blob) => {
-        console.log("GIF finished, size:", blob.size);
-        resolved = true;
+        console.log("✅ GIF finished! Size:", blob.size, "bytes");
+        URL.revokeObjectURL(blobUrl);
         resolve(blob);
       });
 
       gif.on("error", (err: Error) => {
-        console.error("GIF error:", err);
+        console.error("❌ GIF error:", err);
+        URL.revokeObjectURL(blobUrl);
         reject(err);
       });
 
-      // Extract frames from video
+      // Extract frames
       const fps = 10;
-      const duration = Math.min(video.duration, 8);
-      const frameCount = Math.floor(duration * fps);
-      const frameDelay = 1000 / fps;
+      const duration = Math.min(video.duration, 6); // Max 6 seconds
+      const totalFrames = Math.floor(duration * fps);
+      const frameDelay = Math.round(1000 / fps);
 
-      console.log("Extracting", frameCount, "frames...");
+      console.log("🎞️ Extracting", totalFrames, "frames at", fps, "fps...");
 
       try {
-        for (let i = 0; i < frameCount; i++) {
-          const time = i / fps;
-          video.currentTime = time;
-
+        for (let i = 0; i < totalFrames; i++) {
+          const targetTime = (i / fps);
+          
+          // Seek to time and wait
           await new Promise<void>((res, rej) => {
             const timeout = setTimeout(() => {
-              rej(new Error("Frame extraction timeout"));
-            }, 5000);
+              console.warn("⚠️ Frame", i, "timeout, skipping...");
+              res();
+            }, 2000);
 
-            video.onseeked = () => {
+            const handleSeeked = () => {
               clearTimeout(timeout);
+              video.removeEventListener("seeked", handleSeeked);
+              
+              // Draw frame to canvas
               ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
               gif.addFrame(ctx, { copy: true, delay: frameDelay });
+              
+              onProgress?.((i / totalFrames) * 0.5); // 0-50% for extraction
               res();
             };
+
+            video.addEventListener("seeked", handleSeeked);
+            video.currentTime = targetTime;
           });
         }
 
-        console.log("Rendering GIF...");
+        console.log("🔧 All frames extracted, rendering GIF...");
         gif.render();
       } catch (err) {
-        console.error("Frame extraction error:", err);
+        console.error("❌ Frame extraction error:", err);
+        URL.revokeObjectURL(blobUrl);
         reject(err);
       }
     };
 
     video.onerror = (e) => {
-      console.error("Video load error:", e);
+      console.error("❌ Video load error:", e);
+      URL.revokeObjectURL(blobUrl);
       reject(new Error("Failed to load video"));
     };
 
-    video.oncanplay = () => {
-      console.log("Video can play");
-    };
-
-    video.src = videoUrl;
+    video.src = blobUrl;
     video.load();
-
-    // Timeout for entire operation
-    setTimeout(() => {
-      if (!resolved) {
-        reject(new Error("GIF conversion timed out"));
-      }
-    }, 120000);
   });
 }
